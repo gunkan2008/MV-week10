@@ -1,0 +1,75 @@
+# Step 30 - Keypoint Mactching on Video
+# If Match Point > refGoodPoint(8) --> this frame is Match
+# if Sum(20 Match frame) == 0 --> Count Index = +1
+# if Sum(20 Match frame) > refFrameCount(10) --> Total = Total+Count Index, Count Index = 0
+
+import cv2
+import numpy as np
+nDimGoodArray = 8
+refGoodPoint  = 6
+refFrameCount = 8
+
+sift = cv2.xfeatures2d.SIFT_create()
+#image1C = cv2.imread("./image/Skittles.jpg")  
+image1C = cv2.imread("./image/Z1.png")
+image1G = cv2.cvtColor(image1C, cv2.IMREAD_GRAYSCALE)  
+kp1, des1 = sift.detectAndCompute(image1G, None)
+
+#cap = cv2.VideoCapture("./image/Candy.mp4")
+#cap = cv2.VideoCapture("./image/video_BU.avi")
+cap = cv2.VideoCapture("./image/Video30.avi")
+
+ret, frame = cap.read()
+height, width = frame.shape[:2]
+positionText = (30, int(0.20*height))    # 25%
+runGoodArray1 = np.zeros(nDimGoodArray)
+Obj1_Total, Obj1_Adder = 0, 0
+
+while(cap.isOpened()):
+    ret, image2C = cap.read()
+    if ret == True:
+        image2G = cv2.cvtColor(image2C, cv2.IMREAD_GRAYSCALE) 
+        kp2, des2 = sift.detectAndCompute(image2G, None)
+        good = []
+        if len(kp2) != 0 :
+            match = cv2.BFMatcher()
+            matches = match.knnMatch(des1, des2, k=2)
+            for i_matche in range(len(matches)):
+                try:
+                    m, n = matches[i_matche]
+                except (ValueError):
+                    pass
+                else:
+                    if m.distance < 0.5 * n.distance :
+                        good.append(m)
+        
+
+        for iShift in range(nDimGoodArray-1):
+            runGoodArray1[iShift] = runGoodArray1[iShift+1]
+        if len(good) > refGoodPoint:
+            runGoodArray1[nDimGoodArray-1] = 1  
+        else:
+            runGoodArray1[nDimGoodArray-1] = 0 
+        
+        summFrame = runGoodArray1.sum(dtype=np.int32)
+        if summFrame == 0:
+            Obj1_Adder = 1
+        if summFrame > 1:
+            Obj1_Total = Obj1_Total + Obj1_Adder
+            Obj1_Adder = 0
+        
+        
+        textShow = str(Obj1_Total) + "<" + str(len(good)) + "," + str(summFrame) + ">"    
+        cv2.putText(image2C,textShow , positionText, cv2.FONT_HERSHEY_PLAIN, 4, (0,0,255), 2)
+           
+        match_result = cv2.drawMatches(image1C, kp1, image2C, kp2, good[:50], None, flags=2)
+        
+        cv2.imshow('Frame',match_result)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    else: 
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+print("Object Type-1 = ", Obj1_Total)
