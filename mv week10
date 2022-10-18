@@ -1,0 +1,93 @@
+# Step 30 - Keypoint Mactching on Video
+import cv2
+import numpy as np
+dimensionFrameRecord = 20
+minGoodPoint_A, maxFrame_AAdd, minFrame_ASet = 1, 13, 5 #sum
+minGoodPoint_1, maxFrame_1Add, minFrame_1Set = 4, 9, 2 #ตัวนับ
+
+sift = cv2.xfeatures2d.SIFT_create()
+#image1C = cv2.imread("./image/Skittles.jpg")  
+image1C = cv2.imread("./image/Z1.png")
+image1G = cv2.cvtColor(image1C, cv2.IMREAD_GRAYSCALE)  
+kp1, des1 = sift.detectAndCompute(image1G, None)
+
+#cap = cv2.VideoCapture("./image/Candy.mp4")
+cap = cv2.VideoCapture("./image/Video30.avi")
+#cap = cv2.VideoCapture("./image/video_BU2S.avi")
+#cap = cv2.VideoCapture("./image/video_BU2F.avi")
+
+ret, frame = cap.read()
+height, width = frame.shape[:2]
+posTextObj1 = (30, 50)    # 10%
+posTextObjA = (30,100)    # 20%
+runGoodArray1 = np.zeros(dimensionFrameRecord)
+runGoodArrayA = np.zeros(dimensionFrameRecord)
+Obj1_Total, Obj1_Adder = 0, 0
+ObjA_Total, ObjA_Adder = 0, 0
+
+
+while(cap.isOpened()):
+    ret, image2C = cap.read()
+    if ret == True:
+        for iShift in range(nDimGoodArray-1):
+            runGoodArray1[iShift] = runGoodArray1[iShift+1]
+            runGoodArrayA[iShift] = runGoodArrayA[iShift+1]
+            
+        image2G = cv2.cvtColor(image2C, cv2.IMREAD_GRAYSCALE) 
+        kp2, des2 = sift.detectAndCompute(image2G, None)
+        #-----------------------------------------------------------------------
+        good = []
+        if len(kp2) != 0 :
+            match = cv2.BFMatcher()
+            matches = match.knnMatch(des1, des2, k=2)
+            for i_matche in range(len(matches)):
+                try:
+                    m, n = matches[i_matche]
+                except (ValueError):
+                    pass
+                else:
+                    if m.distance < 0.5 * n.distance :
+                        good.append(m)
+        
+        if len(good) >= minGoodPoint_1:
+            runGoodArray1[nDimGoodArray-1] = 1  
+        else:
+            runGoodArray1[nDimGoodArray-1] = 0 
+        
+        summFrame = runGoodArray1.sum(dtype=np.int32)
+        if len(good) <= minFrame_1Set:
+            Obj1_Adder = 1
+        if len(good) >= maxFrame_1Add:
+            Obj1_Total = Obj1_Total + Obj1_Adder
+            Obj1_Adder = 0
+            
+        textShow = str(Obj1_Total) + "<" + str(summFrame) + "," + str(len(good)) + ">"    
+        cv2.putText(image2C, textShow, posTextObj1, cv2.FONT_HERSHEY_PLAIN, 4, (0,0,255), 3)
+        
+        #-----------------------------------------------------------------------
+        if len(kp2) >= minGoodPoint_A:
+            runGoodArrayA[nDimGoodArray-1] = 1  
+        else:
+            runGoodArrayA[nDimGoodArray-1] = 0 
+        
+        summFrame = runGoodArrayA.sum(dtype=np.int32)
+        if len(kp2) <= minFrame_ASet:
+            ObjA_Adder = 1
+        if len(kp2) >= maxFrame_AAdd:
+            ObjA_Total = ObjA_Total + ObjA_Adder
+            ObjA_Adder = 0
+            
+        textShow = str(ObjA_Total) + "<" + str(summFrame) + "," + str(len(kp2)) + ">"    
+        cv2.putText(image2C, textShow, posTextObjA, cv2.FONT_HERSHEY_PLAIN, 4, (255,0,0), 3)
+        
+        #-----------------------------------------------------------------------
+        match_result = cv2.drawMatches(image1C, kp1, image2C, kp2, good[:50], None, flags=2)
+        cv2.imshow('Frame',match_result)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    else: 
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+print("Total = ",ObjA_Total ,", Object Type_1 = ", Obj1_Total)
